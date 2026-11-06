@@ -2,7 +2,7 @@
 
 A small Python tool that watches ARP traffic on a local network and warns you when it looks like someone is poisoning ARP caches.
 
-I built it as part of a university cyber security assignment, then tidied it up and added a few features (capture file mode, log file, tests).
+It started as a group assignment for CSCI262 at the University of Wollongong. This version is tidied up and extended with a capture file mode, a log file option and tests.
 
 ## The problem
 
@@ -19,7 +19,7 @@ Each alert is only printed once, so a running attack does not flood the screen.
 
 ## Setup
 
-You need Python 3.8 or newer.
+You need Python 3.11 or newer. It is tested on 3.11, 3.12 and 3.13.
 
 ```
 pip install -r requirements.txt
@@ -64,7 +64,7 @@ Options:
 
 ## Testing it in a lab
 
-I tested it in a VirtualBox lab with Kali as the attacker and Metasploitable as the victim, on a host-only network. Only do this on machines you own.
+The original assignment tested it in virtual machines, with Kali Linux as the attacker and Metasploitable as the victim. Only try this on machines and networks you own.
 
 On the attacker, poison both directions (one terminal each):
 
@@ -73,7 +73,7 @@ arpspoof -i eth0 -t <victim-ip> <gateway-ip>
 arpspoof -i eth0 -t <gateway-ip> <victim-ip>
 ```
 
-Run the detector on the victim or on any other machine on the same network, and the alerts show up within a few seconds.
+Run the detector on the victim machine. It prints an alert once it sees the conflicting ARP packets.
 
 ## Tests
 
@@ -87,7 +87,7 @@ The tests cover normal traffic, both alert types, repeated alerts, forged reques
 ## Limitations
 
 - It only detects. It does not block the attacker or fix the ARP cache.
-- It only sees ARP traffic on its own network segment.
+- It only sees the packets that reach the machine it runs on. Poisoning replies are sent straight to the victim, so run it on the machine you want to protect. On a switched network, a bystander machine will not see them.
 - It can give false alarms on networks where one device legitimately answers for several IPs (some routers, proxy ARP, virtual machine hosts) or where a device changes MAC address (failover, NIC swaps).
 - If the detector starts after the attack has already begun, it may learn the attacker's MAC as the "normal" one.
 - Stronger defences are Dynamic ARP Inspection on managed switches, static ARP entries for critical hosts, and Secure ARP. This tool is for networks where you cannot use those.
@@ -100,7 +100,3 @@ requirements.txt         Python dependency (Scapy)
 tests/test_detector.py   tests
 samples/                 demo capture and the script that makes it
 ```
-
-## Background
-
-This started as a group assignment for CSCI262 at the University of Wollongong. This version is cleaned up and extended for my portfolio.
