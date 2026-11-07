@@ -94,3 +94,51 @@ def test_missing_capture_file_gives_friendly_error():
     )
     assert result.returncode == 1
     assert "Could not find the capture file" in result.stdout + result.stderr
+
+
+def test_missing_log_directory_gives_friendly_error(tmp_path):
+    result = subprocess.run(
+        [sys.executable, "arp_detector.py", "--pcap", "samples/demo_attack.pcap",
+         "--log", str(tmp_path / "missing" / "output.log")],
+        cwd=ROOT, capture_output=True, text=True,
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode == 1
+    assert "Could not open log file" in output
+    assert "Traceback" not in output
+
+
+def test_bad_interface_gives_friendly_error(monkeypatch, caplog):
+    monkeypatch.setattr(sys, "argv", ["arp_detector.py", "--iface", "missing-interface"])
+
+    def unavailable(**kwargs):
+        raise ValueError("Interface 'missing-interface' not found")
+
+    monkeypatch.setattr(arp_detector, "sniff", unavailable)
+    assert arp_detector.main() == 1
+    assert "Could not start the capture" in caplog.text
+
+
+def test_invalid_capture_gives_friendly_error(tmp_path):
+    capture = tmp_path / "invalid.pcap"
+    capture.write_bytes(b"not a packet capture")
+    result = subprocess.run(
+        [sys.executable, "arp_detector.py", "--pcap", str(capture)],
+        cwd=ROOT, capture_output=True, text=True,
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode == 1
+    assert "Could not read capture file" in output
+    assert "Traceback" not in output
+
+
+def test_log_file_contains_demo_alerts(tmp_path):
+    logfile = tmp_path / "alerts.log"
+    result = subprocess.run(
+        [sys.executable, "arp_detector.py", "--pcap", "samples/demo_attack.pcap", "--log", str(logfile)],
+        cwd=ROOT, capture_output=True, text=True,
+    )
+    assert result.returncode == 0
+    output = logfile.read_text(encoding="utf-8")
+    assert "Alerts raised: 3" in output
+    assert output.count("[WARNING]") == 3

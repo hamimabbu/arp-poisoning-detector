@@ -80,7 +80,10 @@ def main():
 
     handlers = [logging.StreamHandler()]
     if args.log:
-        handlers.append(logging.FileHandler(args.log))
+        try:
+            handlers.append(logging.FileHandler(args.log, encoding="utf-8"))
+        except OSError as error:
+            parser.exit(1, f"Could not open log file {args.log}: {error}\n")
 
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
@@ -97,14 +100,23 @@ def main():
         else:
             sniff(iface=args.iface, filter="arp", prn=handle_packet, store=0)
     except PermissionError:
-        log.error("Not enough rights to capture packets. On Linux run it with sudo.")
+        if args.pcap:
+            log.error(f"Not enough rights to read the capture file: {args.pcap}")
+        else:
+            log.error("Not enough rights to capture packets. Use an administrator terminal on Windows or sudo on Linux.")
         return 1
     except FileNotFoundError:
-        log.error(f"Could not find the capture file: {args.pcap}")
+        if args.pcap:
+            log.error(f"Could not find the capture file: {args.pcap}")
+        else:
+            log.error("Could not start the capture. Check the interface and capture driver.")
         return 1
-    except Scapy_Exception as error:
-        log.error(f"Could not start the capture: {error}")
-        log.error("Windows needs Npcap installed. Linux needs libpcap (comes with tcpdump).")
+    except (Scapy_Exception, OSError, ValueError, EOFError) as error:
+        if args.pcap:
+            log.error(f"Could not read capture file {args.pcap}: {error}")
+        else:
+            log.error(f"Could not start the capture: {error}")
+            log.error("Check the interface name. Windows needs Npcap; Linux needs libpcap.")
         return 1
     except KeyboardInterrupt:
         pass

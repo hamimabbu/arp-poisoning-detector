@@ -19,13 +19,18 @@ Each alert is only printed once, so a running attack does not flood the screen.
 
 ## Setup
 
-You need Python 3.11 or newer. It is tested on 3.11, 3.12 and 3.13.
+You need Python 3.11 or newer. The test workflow covers Python 3.11, 3.12 and 3.13 on Windows and Linux. Check the latest Actions run for its results.
 
 ```
-pip install -r requirements.txt
+python -m venv .venv
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+# Linux/macOS: source .venv/bin/activate
+python -m pip install -r requirements.txt
 ```
 
 For live capture, Windows needs [Npcap](https://npcap.com/) and Linux needs libpcap (it comes with tcpdump). Kali has it already.
+
+The included capture-file demo and automated tests do not need administrator rights or a live network. Scapy may warn that no capture driver is installed; this does not stop the offline demo. Live capture still needs the driver and suitable permissions.
 
 ## Try it without root
 
@@ -62,6 +67,8 @@ Options:
 | `-l`, `--log` | Also write the output to a file |
 | `-v`, `--verbose` | Show every ARP packet, not just alerts |
 
+For example, `python arp_detector.py --pcap samples/demo_attack.pcap --log alerts.log` also writes the three demo alerts to a UTF-8 log. The parent folder must already exist. Invalid log paths, missing or unsupported capture files and unavailable interfaces produce an error and exit with status 1.
+
 ## Testing it in a lab
 
 The original assignment tested it in virtual machines, with Kali Linux as the attacker and Metasploitable as the victim. Only try this on machines and networks you own.
@@ -78,11 +85,11 @@ Run the detector on the victim machine. It prints an alert once it sees the conf
 ## Tests
 
 ```
-pip install pytest
+python -m pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-The tests cover normal traffic, both alert types, repeated alerts, forged requests, ignored packets and a full run on the demo capture.
+The tests cover normal traffic, both alert types, repeated alerts, forged requests, ignored packets, the demo capture, log output and error handling. The GitHub Actions workflow runs these offline checks; it does not capture live traffic.
 
 ## Limitations
 
@@ -90,6 +97,7 @@ The tests cover normal traffic, both alert types, repeated alerts, forged reques
 - It only sees the packets that reach the machine it runs on. Poisoning replies are sent straight to the victim, so run it on the machine you want to protect. On a switched network, a bystander machine will not see them.
 - It can give false alarms on networks where one device legitimately answers for several IPs (some routers, proxy ARP, virtual machine hosts) or where a device changes MAC address (failover, NIC swaps).
 - If the detector starts after the attack has already begun, it may learn the attacker's MAC as the "normal" one.
+- Learned mappings stay in memory until the process ends. This is a short-session lab tool; long-running capture on a busy network can use increasing memory.
 - Stronger defences are Dynamic ARP Inspection on managed switches, static ARP entries for critical hosts, and Secure ARP. This tool is for networks where you cannot use those.
 
 ## Project files
@@ -97,6 +105,8 @@ The tests cover normal traffic, both alert types, repeated alerts, forged reques
 ```
 arp_detector.py          the detector
 requirements.txt         Python dependency (Scapy)
+requirements-dev.txt     Test dependencies
 tests/test_detector.py   tests
 samples/                 demo capture and the script that makes it
+.github/workflows/       Offline Windows/Linux checks
 ```
