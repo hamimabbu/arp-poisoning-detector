@@ -1,21 +1,21 @@
-# ARP Poisoning Detector
+# ARP poisoning detector
 
-A small Python tool that watches ARP traffic on a local network and warns you when it looks like someone is poisoning ARP caches.
+A Python and Scapy tool that watches ARP traffic and reports conflicting IP and MAC address claims.
 
-It started as a group assignment for CSCI262 at the University of Wollongong. This version is tidied up and extended with a capture file mode, a log file option and tests.
+It started as a CSCI262 group assignment at the University of Wollongong. This version adds an offline capture mode, file logging and automated tests.
 
 ## The problem
 
-ARP has no authentication. Any machine on the LAN can say "this IP belongs to my MAC address" and most systems will believe it. An attacker uses this to sit between a victim and the gateway (a man-in-the-middle attack) and read or change the traffic.
+ARP has no authentication. A machine on the LAN can claim an IP address using its own MAC address. Forged claims can redirect traffic through an attacker between a victim and the gateway.
 
 ## How the detector works
 
 It sniffs ARP packets with Scapy and keeps track of which MAC addresses have claimed which IP addresses. It raises an alert in two cases:
 
-1. One MAC address claims more than one IP address. This is what an attacker looks like when it pretends to be both the victim and the gateway.
-2. One IP address is claimed by more than one MAC address. This is what the victim sees when the real gateway and the attacker both answer for the same IP.
+1. One MAC address claims more than one IP address, as it might when impersonating both a victim and a gateway.
+2. One IP address is claimed by more than one MAC address, as it might when the real gateway and an attacker answer for the same IP.
 
-Each alert is only printed once, so a running attack does not flood the screen.
+Repeated claims do not repeat the same alert. A new claim that increases the number of conflicting addresses raises another alert. These are warning signs; ordinary network changes can also trigger them, as noted in the limitations below.
 
 ## Setup
 
@@ -32,9 +32,9 @@ For live capture, Windows needs [Npcap](https://npcap.com/) and Linux needs libp
 
 The included capture-file demo and automated tests do not need administrator rights or a live network. Scapy may warn that no capture driver is installed; this does not stop the offline demo. Live capture still needs the driver and suitable permissions.
 
-## Try it without root
+## Offline demo
 
-The repo includes a fake capture of an attack (made-up addresses), so you can see the output straight away:
+The repo includes a synthetic attack capture with made-up addresses:
 
 ```
 python arp_detector.py --pcap samples/demo_attack.pcap
@@ -89,7 +89,7 @@ python -m pip install -r requirements-dev.txt
 python -m pytest
 ```
 
-The tests cover normal traffic, both alert types, repeated alerts, forged requests, ignored packets, the demo capture, log output and error handling. The GitHub Actions workflow runs these offline checks; it does not capture live traffic.
+The 14 tests cover normal traffic, both alert types, repeated alerts, forged requests, ignored packets, the demo capture, log output and error handling. They passed on Windows and Linux with Python 3.11, 3.12 and 3.13: [test run](https://github.com/hamimabbu/arp-poisoning-detector/actions/runs/42325270782). The workflow uses offline checks and does not capture live traffic.
 
 ## Limitations
 
@@ -98,7 +98,7 @@ The tests cover normal traffic, both alert types, repeated alerts, forged reques
 - It can give false alarms on networks where one device legitimately answers for several IPs (some routers, proxy ARP, virtual machine hosts) or where a device changes MAC address (failover, NIC swaps).
 - If the detector starts after the attack has already begun, it may learn the attacker's MAC as the "normal" one.
 - Learned mappings stay in memory until the process ends. This is a short-session lab tool; long-running capture on a busy network can use increasing memory.
-- Stronger defences are Dynamic ARP Inspection on managed switches, static ARP entries for critical hosts, and Secure ARP. This tool is for networks where you cannot use those.
+- This learning tool does not replace network controls such as Dynamic ARP Inspection or deliberately configured static ARP entries.
 
 ## Project files
 
